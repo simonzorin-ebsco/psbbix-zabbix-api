@@ -162,6 +162,8 @@ Function New-ZabbixSession {
         write-host "Seems SSL certificate is self signed. Trying with no SSL validation..." -f yellow
     } 
     finally {
+        $Protocol ="http"
+        $URL = $Protocol+"://$IPAddress/zabbix"
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
         $global:zabSession=Invoke-RestMethod ("$URL/api_jsonrpc.php") -ContentType "application/json" -Body $BodyJSON -Method Post |
 			Select-Object jsonrpc,@{Name="session";Expression={$_.Result}},id,@{Name="URL";Expression={$URL}}
@@ -199,12 +201,12 @@ Function Get-ZabbixSession {
     param ()
 	
     if (!($global:zabSession -and $global:zabSessionParams)) {
-        write-host "`nDisconnected form Zabbix Server!`n" -f red; return
+        write-host "`nDisconnected from Zabbix Server!`n" -f red; return
     }
     elseif ($global:zabSession -and $global:zabSessionParams -and ($ZabbixVersion=Get-ZabbixVersion @zabSessionParams)) {
 		$zabSession
     }
-	else {write-host "`nDisconnected form Zabbix Server!`n" -f red; return}
+	else {write-host "`nDisconnected from Zabbix Server!`n" -f red; return}
 }
 
 Function Remove-ZabbixSession {
@@ -236,22 +238,24 @@ Function Remove-ZabbixSession {
 		$Body = @{
 			method = "user.logout"
 			jsonrpc = $jsonrpc
+            params = @()
 			id = $id
 			auth = $session
 		}
 		
 		$BodyJSON = ConvertTo-Json $Body
-		write-verbose $BodyJSON
-		
+
+        $URL = $Global:zabSessionParams.url		
 		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
 		if ($a.result) {$a.result | out-null} else {$a.error}
 		
 		$global:zabSession = ""
 		$global:zabSessionParams = ""
 		
-		if (!(Get-ZabbixVersion @zabSessionParams)) {}
+<#what is the point of this test below with Get-ZabbixVersion? #>
+<#		if (!(Get-ZabbixVersion @zabSessionParams)) {} #>
 	}
-	else {Get-ZabbixSession}
+<#	else {Get-ZabbixSession} #>
 }
 
 Function Get-ZabbixVersion {
@@ -283,6 +287,7 @@ Function Get-ZabbixVersion {
 		$Body = @{
 			method = "apiinfo.version"
 			jsonrpc = $jsonrpc
+            params = @()
 			id = $id
 		}
 		
@@ -1120,6 +1125,216 @@ Function Get-ZabbixMaintenance {
 		}
 	}
 }
+
+<#New Functions #>
+
+Function New-ZabbixUserGroup {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$Debug_mode,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$gui_access,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$user_status,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$rights,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$userids,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][int]$permission,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][string]$hostGroupId,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+        if (!($Name -or $hostGroupId -or $permission)) {write-host "`nYou need to provide a Name, a GroupId, and a permission integer as parameters`n" -f red; return}
+
+        if($Name -and $hostGroupId -and $permission) {
+        $Body = @{
+            jsonrpc = $jsonrpc
+            method = "usergroup.create"
+            params = @{
+                name = $Name
+                rights = @{
+                    permission = $permission
+                    id = $hostGroupId
+                }
+                userids = $userids
+            }
+            auth = $session
+            id = $id
+            }
+        }
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
+}
+<#
+
+Function Set-ZabbixUserGroup {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$Debug_mode,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$gui_access,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$user_status,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$rights,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$userids,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][int]$permission,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][string]$hostGroupId,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+        if (!($Name -or $hostGroupId -or $permission)) {write-host "`nYou need to provide a Name, a GroupId, and a permission integer as parameters`n" -f red; return}
+
+        if($Name -and $hostGroupId -and $permission) {
+        $Body = @{
+            jsonrpc = $jsonrpc
+            method = "usergroup.create"
+            params = @{
+                name = $Name
+                rights = @{
+                    permission = $permission
+                    id = $hostGroupId
+                }
+                userids = $userids
+            }
+            auth = $session
+            id = $id
+            }
+        }
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
+}
+#>
+<#
+Function New-ZabbixTemplate {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$host_Groups,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$hosts,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$templates,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$macros,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+        if (!($host_Groups)) {write-host "`nYou need to provide a host group parameter for the template you are attempting to create`n" -f red; return}
+
+        if($host_Groups) {
+        $Body = @{
+            jsonrpc = $jsonrpc
+            method = "template.create"
+            params = @{
+                host = $hosts
+                templates = $templates
+                macros = $macros
+            }
+            auth = $session
+            id = $id
+            }
+        }
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
+}
+
+Function Set-ZabbixTemplate {
+
+}
+
+#>
+Function New-ZabbixHostGroup {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$groupid,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$flags,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$internal,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+        if (!($Name)) {write-host "`nYou need to provide a Name parameter for the host group you are attempting to create`n" -f red; return}
+
+        if($Name) {
+        $Body = @{
+            jsonrpc = $jsonrpc
+            method = "hostgroup.create"
+            params = @{
+                name = $Name
+            }
+            auth = $session
+            id = $id
+            }
+        }
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
+}
+
+<#
+Function New-ZabbixAction {
+
+}
+
+#>
 
 Function New-ZabbixMaintenance {
 	<# 
