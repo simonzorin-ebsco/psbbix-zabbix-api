@@ -1238,8 +1238,9 @@ Function New-ZabbixTemplate {
 
 	[CmdletBinding()]
 	Param (
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$host_Groups,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$host_Groups,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$hosts,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][String]$TemplateName,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$templates,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$macros,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
@@ -1257,9 +1258,9 @@ Function New-ZabbixTemplate {
 
         if (!($host_Groups)) {write-host "`nYou need to provide a host group parameter for the template you are attempting to create`n" -f red; return}
 		
-		if (Get-ZabbixTemplate @zabSessionParams -TemplateName) {write-host "`nA template by that name already exists`n" -f red; return}
+		if (Get-ZabbixTemplate @zabSessionParams -TemplateName $TemplateName) {write-host "`nA template by that name already exists`n" -f red; return}
         
-		if($host_Groups -and !(Get-ZabbixTemplate @zabSessionParams -TemplateName)) {
+		if($host_Groups -and !(Get-ZabbixTemplate @zabSessionParams -TemplateName $TemplateName)) {
         $Body = @{
             jsonrpc = $jsonrpc
             method = "template.create"
