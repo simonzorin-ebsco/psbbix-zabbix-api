@@ -1257,8 +1257,9 @@ Function New-ZabbixTemplate {
 		write-verbose "($boundparams)"
 
         if (!($host_Groups)) {write-host "`nYou need to provide a host group parameter for the template you are attempting to create`n" -f red; return}
-
-        if($host_Groups) {
+		
+		if (Get-ZabbixTemplate @zabSessionParams -TemplateName) {write-host "`nA template by that name already exists`n" -f red; return}
+        if($host_Groups -and !(Get-ZabbixTemplate @zabSessionParams -TemplateName)) {
         $Body = @{
             jsonrpc = $jsonrpc
             method = "template.create"
