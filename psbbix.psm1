@@ -1180,17 +1180,16 @@ Function New-ZabbixUserGroup {
 		if ($a.result) {$a.result} else {$a.error}
     }
 }
-<#
 
 Function Set-ZabbixUserGroup {
 
 	[CmdletBinding()]
 	Param (
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$Debug_mode,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$gui_access,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$user_status,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$user_status,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$rights,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$userids,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][int]$permission,
@@ -1213,7 +1212,7 @@ Function Set-ZabbixUserGroup {
         if($Name -and $hostGroupId -and $permission) {
         $Body = @{
             jsonrpc = $jsonrpc
-            method = "usergroup.create"
+            method = "usergroup.update"
             params = @{
                 name = $Name
                 rights = @{
@@ -1331,6 +1330,53 @@ Function New-ZabbixHostGroup {
 
 <#
 Function New-ZabbixAction {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$status,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+        if (!($Name)) {write-host "`nYou need to provide a Name parameter for the host group you are attempting to create`n" -f red; return}
+
+        if($Name) {
+        $Body = @{
+        params = @{
+        }
+            jsonrpc = $jsonrpc
+            auth = $session
+            id = $id
+            }
+        }
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
 
 }
 
