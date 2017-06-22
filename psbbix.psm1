@@ -1186,11 +1186,9 @@ Function Set-ZabbixUserGroup {
 	[CmdletBinding()]
 	Param (
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$Debug_mode,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$gui_access,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$user_status,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$rights,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$userids,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][int]$permission,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
@@ -1207,31 +1205,49 @@ Function Set-ZabbixUserGroup {
 		$boundparams=$PSBoundParameters | out-string
 		write-verbose "($boundparams)"
 
-        if (!($Name -or $hostGroupId -or $permission)) {write-host "`nYou need to provide a Name, a GroupId, and a permission integer as parameters`n" -f red; return}
+		$params = @{}
+		$rights = @{}
 
-        if($Name -and $hostGroupId -and $permission) {
-        $Body = @{
+		if ($usrgrpid) {
+		$params.add("usrgrpid", $usrgrpid)			
+		if (!($hostGroupId -and $permission)) {write-host "`nYou need to provide a GroupId and permissions to set rights`n" -f red; return}
+			elseif ($hostGroupId -and $permission) {
+				$rights.add("id", $hostGroupId)
+				$rights.add("permission", $permission)
+			}
+	
+			if ($user_status) {
+				$params.add("user_status", $user_status)
+			}
+
+			if ($Debug_mode) {
+				$params.add("debug_mode", $Debug_mode)
+			}
+
+			if ($gui_access) {
+				$params.add("gui_access", $gui_access)
+			}
+
+			if ($userids) {
+				$params.add("userids", $userids)
+			}
+
+			$params.add("rights", $rights)
+			$Body = @{
             jsonrpc = $jsonrpc
             method = "usergroup.update"
-            params = @{
-                name = $Name
-                rights = @{
-                    permission = $permission
-                    id = $hostGroupId
-                }
-                userids = $userids
-            }
+            params = $params
             auth = $session
             id = $id
             }
-        }
 
 		$BodyJSON = ConvertTo-Json $Body -Depth 4
 		write-verbose $BodyJSON
 
 		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
 		if ($a.result) {$a.result} else {$a.error}
-    }
+    	}
+	}
 }
 
 Function New-ZabbixTemplate {
@@ -2105,6 +2121,7 @@ Function Get-ZabbixUserGroup {
 			params = @{
 				output = "extend"
 				selectUsers = "extend"
+				selectRights = "extend"
 				userids = $userids
 				status = $status
 				sortfield = @($sortby)
