@@ -1186,6 +1186,7 @@ Function Set-ZabbixUserGroup {
 	[CmdletBinding()]
 	Param (
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$Name,		
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$Debug_mode,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$gui_access,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$user_status,
@@ -1215,7 +1216,11 @@ Function Set-ZabbixUserGroup {
 				$rights.add("id", $hostGroupId)
 				$rights.add("permission", $permission)
 			}
-	
+#
+#   		if ($Name) {
+#				$params.add("name", $Name)
+#			}
+#
 			if ($user_status) {
 				$params.add("user_status", $user_status)
 			}
@@ -1254,6 +1259,7 @@ Function New-ZabbixTemplate {
 
 	[CmdletBinding()]
 	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$templateid,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$host_Groups,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$hosts,
 		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][String]$TemplateName,
@@ -1302,12 +1308,60 @@ Function New-ZabbixTemplate {
     }
 }
 
-<#
 Function Set-ZabbixTemplate {
 
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$templateid,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$host_Groups,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$hosts,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][String]$TemplateName,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$templates,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$templates_clear,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$macros,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+		$params = @{}
+		$params.add("templateid", $templateid)
+
+		if (!($templateid)) {
+			write-host "`nYou need to provide a template id parameter for the template you are attempting to modify`n"
+		} else {
+			if (($host_Groups)) {$params.add("groups", $host_Groups)}
+			if ($TemplateName) {$params.add("host", $TemplateName)}
+			if ($hosts) {$params.add("hosts", $hosts)}
+			if ($templates) {$params.add("templates", $templates)}
+			if ($templates_clear) {$params.add("templates_clear", $templates_clear)}
+			if ($macros) {$params.add("macros", $macros)}
+		}
+
+        $Body = @{
+            jsonrpc = $jsonrpc
+            method = "template.update"
+			params = $params 
+            auth = $session
+            id = $id
+            }
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
 }
 
-#>
 Function New-ZabbixHostGroup {
 
 	[CmdletBinding()]
