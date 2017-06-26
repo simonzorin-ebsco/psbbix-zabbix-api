@@ -1186,7 +1186,7 @@ Function Set-ZabbixUserGroup {
 	[CmdletBinding()]
 	Param (
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][string]$usrgrpid,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$Name,		
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$Name,		
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$Debug_mode,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$gui_access,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$user_status,
@@ -1216,11 +1216,11 @@ Function Set-ZabbixUserGroup {
 				$rights.add("id", $hostGroupId)
 				$rights.add("permission", $permission)
 			}
-#
-#   		if ($Name) {
-#				$params.add("name", $Name)
-#			}
-#
+
+   			if ($Name) {
+				$params.add("name", $Name)
+			}
+
 			if ($user_status) {
 				$params.add("user_status", $user_status)
 			}
@@ -1405,24 +1405,24 @@ Function New-ZabbixHostGroup {
     }
 }
 
-<#
+
 Function New-ZabbixAction {
 
 	[CmdletBinding()]
 	Param (
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$Name,
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$status,
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$triggerActionName,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$status,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
-		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
+		#[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
@@ -1436,17 +1436,59 @@ Function New-ZabbixAction {
 		$boundparams=$PSBoundParameters | out-string
 		write-verbose "($boundparams)"
 
-        if (!($Name)) {write-host "`nYou need to provide a Name parameter for the host group you are attempting to create`n" -f red; return}
+		$params = @{}
+		$filters = @{}
+        $conditions = @{}
+		$operations = @{}
+		$opmessage_grp = @{}
+		$opmessage = @{}
+		$recovery_operations = @{}
 
-        if($Name) {
-        $Body = @{
-        params = @{
-        }
-            jsonrpc = $jsonrpc
-            auth = $session
-            id = $id
-            }
-        }
+		$conditions.add("conditiontype", 1)
+		$conditions.add("operator", 0)
+		$conditions.add("value", "10084")
+		$conditions.add("conditiontype", 3)
+		$conditions.add("operator", 2)
+		$conditions.add("value", "memory")
+
+		$filters.add("evaltype", 0)
+		$filters.add($conditions)
+
+		$opmessage_grp.add("usrgrpid", 7)
+		$opmessage.add("default_msg", 1)
+		$opmessage.add("mediatypeid", "1")
+
+		$operations.add("operationtype", 0)
+		$operations.add("esc_period", 0)
+		$operations.add("esc_step_from", 1)
+		$operations.add("esc_step_to", 2)
+		$operations.add("evaltype", 0)
+
+		$recovery_operations.add("operationtype", "11")
+		$recovery_operations.add($opmessage)
+		$recovery_operations.remove("default_msg")
+
+        if (!($triggerActionName)) {
+			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
+		} 
+		else {
+			$params.add("name", $triggerActionName)
+			$params.add("event_source", 0)
+			$params.add("status", 0)
+			$params.add("esc_period", 120)
+			$params.add("def_shortdata", $def_shortdata)
+			$params.add("def_longdata", $def_longdata)
+			$params.add($filters)
+			$params.add($operations)
+			$params.add($recovery_operations)
+		}
+
+		$Body = @{
+			params = $params
+			jsonrpc = $jsonrpc
+			auth = $session
+			id = $id
+		}
 
 		$BodyJSON = ConvertTo-Json $Body -Depth 4
 		write-verbose $BodyJSON
@@ -1457,7 +1499,7 @@ Function New-ZabbixAction {
 
 }
 
-#>
+#end of new functions>
 
 Function New-ZabbixMaintenance {
 	<# 
