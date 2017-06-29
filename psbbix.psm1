@@ -1406,13 +1406,222 @@ Function New-ZabbixHostGroup {
 }
 
 
-Function New-ZabbixAction {
+Function New-ZabbixAutoregAction {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$actionName,
+		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$values,		
+		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
+        #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
+        #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$filters,
+        #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
+        #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$status,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+		$conditiontype = 24, 24
+		write-verbose $conditiontype[0]
+		$values = "env=test", "app=testApp"
+
+        if (!($actionName) -and $(actionOperations) -and $(actionRecoveryOperations) -and $(filters) ) {
+			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
+		} 
+
+		$Body = @{
+			params = @{
+				name = $actionName
+				eventsource = 2
+				status = 0
+				esc_period = 120
+				def_shortdata = $def_shortdata
+				def_longdata = $def_longdata
+				filter = @{
+					evaltype = 0
+					conditions = @(
+						@{
+							conditiontype = $conditiontype[0]
+							operator = 2
+							value = $values[0]
+						}
+						@{
+							conditiontype = $conditiontype[1]
+							operator = 2
+							value = $values[1]
+						}
+					)
+				}
+				operations = @{
+					operationtype = 0
+					esc_period = 0
+					esc_step_from = 1
+					esc_step_to = 2
+					evaltype = 0
+					opmessage_grp = @(
+						@{
+							usrgrpid = "7"
+						}
+					)
+					opmessage = @(
+						default_msg = 1
+						mediatypeid = "1"
+					)
+				}
+				recovery_operations = @{
+					operationtype = "11"
+					opmessage = @{
+						sdefault_msg = 1
+					}
+				}
+			}
+			jsonrpc = $jsonrpc
+			auth = $session
+			id = $id
+		}
+		write-verbose $params
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+
+	}
+}
+
+Function New-ZabbixTriggerAction {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$triggerActionName,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$host_Group,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actSionOperations,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$status,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
+		#[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+		$conditiontype = 16, 4, 4, 0
+		$value = "maintenance", "high", "disaster", $host_Group
+
+        if (!($triggerActionName)) {
+			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
+		} 
+
+		$Body = @{
+			params = @{
+				name = $actionName
+				eventsource = 0
+				status = 0
+				esc_period = 120
+				def_shortdata = $def_shortdata
+				def_longdata = $def_longdata
+				filter = @{
+					evaltype = 0
+					conditions = @(
+						@{
+							conditiontype = $conditiontype[0]
+							operator = 2
+							value = $value[0]
+						}
+						@{
+							conditiontype = $conditiontype[1]
+							operator = 0
+							value = $value[1]
+						}
+						@{
+							conditiontype = $conditiontype[2]
+							operator = 0
+							value = $value[2]
+						}
+						@{
+							conditiontype = $conditiontype[3]
+							operator = 0
+							value = $value[3]
+						}												
+					)
+				}
+				operations = @{
+					operationtype = 0
+					esc_period = 0
+					esc_step_from = 1
+					esc_step_to = 2
+					evaltype = 0
+					opmessage_grp = @(
+						@{
+							usrgrpid = "7"
+						}
+					)
+					opmessage = @(
+						default_msg = 1
+						mediatypeid = "1"
+					)
+				}
+				recovery_operations = @{
+					operationtype = "11"
+					opmessage = @{
+						sdefault_msg = 1
+					}
+				}
+			}
+			jsonrpc = $jsonrpc
+			auth = $session
+			id = $id
+		}
+		write-verbose $params
+
+		$BodyJSON = ConvertTo-Json $Body -Depth 4
+		write-verbose $BodyJSON
+
+		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
+		if ($a.result) {$a.result} else {$a.error}
+    }
+}
+<#Old New-ZabbixTriggerAction
+
+Function New-ZabbixTriggerAction {
 
 	[CmdletBinding()]
 	Param (
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$triggerActionName,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actSionOperations,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
@@ -1438,21 +1647,21 @@ Function New-ZabbixAction {
 
 		$params = @{}
 		$filters = @{}
-        $conditions = @{}
+    	$conditions = @{}
 		$operations = @{}
 		$opmessage_grp = @{}
 		$opmessage = @{}
 		$recovery_operations = @{}
 
-		$conditions.add("conditiontype", 1)
-		$conditions.add("operator", 0)
-		$conditions.add("value", "10084")
+		#$conditions.add("conditiontype", 1)
+		#$conditions.add("operator", 0)
+		#$conditions.add("value", "10084")
 		$conditions.add("conditiontype", 3)
 		$conditions.add("operator", 2)
 		$conditions.add("value", "memory")
 
 		$filters.add("evaltype", 0)
-		$filters.add($conditions)
+		$filters.add($conditions, $null)
 
 		$opmessage_grp.add("usrgrpid", 7)
 		$opmessage.add("default_msg", 1)
@@ -1464,9 +1673,9 @@ Function New-ZabbixAction {
 		$operations.add("esc_step_to", 2)
 		$operations.add("evaltype", 0)
 
-		$recovery_operations.add("operationtype", "11")
-		$recovery_operations.add($opmessage)
-		$recovery_operations.remove("default_msg")
+		#$recovery_operations.add("operationtype", "11")
+		#$recovery_operations.add($opmessage)
+		#$recovery_operations.remove("default_msg")
 
         if (!($triggerActionName)) {
 			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
@@ -1478,9 +1687,9 @@ Function New-ZabbixAction {
 			$params.add("esc_period", 120)
 			$params.add("def_shortdata", $def_shortdata)
 			$params.add("def_longdata", $def_longdata)
-			$params.add($filters)
-			$params.add($operations)
-			$params.add($recovery_operations)
+			$params.add("filters", $filters)
+			$params.add("operations", $operations)
+			$params.add("recovery_operations", $recovery_operations)
 		}
 
 		$Body = @{
@@ -1489,6 +1698,7 @@ Function New-ZabbixAction {
 			auth = $session
 			id = $id
 		}
+		write-verbose $params
 
 		$BodyJSON = ConvertTo-Json $Body -Depth 4
 		write-verbose $BodyJSON
@@ -1496,9 +1706,8 @@ Function New-ZabbixAction {
 		$a = Invoke-RestMethod "$URL/api_jsonrpc.php" -ContentType "application/json" -Body $BodyJSON -Method Post
 		if ($a.result) {$a.result} else {$a.error}
     }
-
 }
-
+#>
 #end of new functions>
 
 Function New-ZabbixMaintenance {
