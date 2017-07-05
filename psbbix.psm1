@@ -1406,12 +1406,13 @@ Function New-ZabbixHostGroup {
 }
 
 
+<#
 Function New-ZabbixAutoregAction {
 
 	[CmdletBinding()]
 	Param (
 		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$actionName,
-		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$values,		
+		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$hostMetadataValues,		
 		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
         #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
         #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$filters,
@@ -1436,15 +1437,17 @@ Function New-ZabbixAutoregAction {
 		$boundparams=$PSBoundParameters | out-string
 		write-verbose "($boundparams)"
 
-		$conditiontype = 24, 24
-		write-verbose $conditiontype[0]
+		#$conditiontype = 24, 24
+		#$conditiontype = New-Object 'System.Collections.Generic.List[Int]'
+		#$conditiontype.add(24)
+		#$conditiontype.add(24)
 		$values = "env=test", "app=testApp"
-
-        if (!($actionName) -and $(actionOperations) -and $(actionRecoveryOperations) -and $(filters) ) {
+        if (!($actionName)) {
 			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
 		} 
 
 		$Body = @{
+			method = "action.create"
 			params = @{
 				name = $actionName
 				eventsource = 2
@@ -1456,12 +1459,12 @@ Function New-ZabbixAutoregAction {
 					evaltype = 0
 					conditions = @(
 						@{
-							conditiontype = $conditiontype[0]
+							conditiontype = 24
 							operator = 2
 							value = $values[0]
 						}
 						@{
-							conditiontype = $conditiontype[1]
+							conditiontype = 24
 							operator = 2
 							value = $values[1]
 						}
@@ -1545,6 +1548,7 @@ Function New-ZabbixTriggerAction {
 		} 
 
 		$Body = @{
+			method = "action.create"
 			params = @{
 				name = $actionName
 				eventsource = 0
@@ -1613,25 +1617,490 @@ Function New-ZabbixTriggerAction {
 		if ($a.result) {$a.result} else {$a.error}
     }
 }
-<#Old New-ZabbixTriggerAction
+#>
 
-Function New-ZabbixTriggerAction {
+Function Set-ZabbixOpConditions {
 
 	[CmdletBinding()]
 	Param (
-        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$triggerActionName,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actSionOperations,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$status,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata,
-		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
-		#[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$conditiontype,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$value,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$operator=0
+	)
+	
+	$opcondition = @{
+		conditiontype = $conditiontype
+		value = $value
+		operationid = $operationid
+		operator = $operator
+	}
+
+	foreach ($h in $opcondition.Keys) {
+		Write-Host "${h}: $($opcondition.Item($h))"
+	}
+	return $opcondition
+
+}
+
+Function Set-ZabbixOpGroup {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$hostgroupid
+	)
+	
+	$opgrp = @{
+		operationid = $operationid
+		group_id = $hostgroupid
+	}
+
+	foreach ($h in $opgrp.Keys) {
+		Write-Host "${h}: $($opgrp.Item($h))"
+	}
+	return $opgrp
+}
+
+Function Set-ZabbixOpCommand {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$type,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$command,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$authtype,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$execute_on,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$password,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$port,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$privatekey,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$publickey,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$scriptid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$username
+	)
+	
+	$opcommand = @{
+		type = $type
+		command = $command
+		authtype = $authtype
+		execute_on = $execute_on
+		password = $password
+		port = $port
+		privatekey = $privatekey
+		publickey = $publickey
+		scriptid = $scriptid
+		username = $username
+	}
+
+	foreach ($h in $opcommand.Keys) {
+		Write-Host "${h}: $($opcmmand.Item($h))"
+	}
+	return $opcommand
+}
+
+Function Set-ZabbixOpCommandGroup {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$opcommand_grpid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$hostgroupid
+	)
+	
+	$opcmdgrp = @{
+		opcommand_grpid = $opcommand_grpid
+		operationid = $operationid
+		group_id = $hostgroupid
+	}
+
+	foreach ($h in $opcmdgrp.Keys) {
+		Write-Host "${h}: $($opcmdgrp.Item($h))"
+	}
+	return $opcmdgrp
+}
+
+Function Set-ZabbixOpCommandHst {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$opcommand_hstid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$hostgroupid
+	)
+	
+	$opcmdhst = @{
+		opcommand_hst = $opcommand_hst
+		operationid = $operationid
+		group_id = $hostgroupid
+	}
+
+	foreach ($h in $opcmdhst.Keys) {
+		Write-Host "${h}: $($opcmdhst.Item($h))"
+	}
+	return $opcmdhst
+}
+
+Function Set-ZabbixOpMessage {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$default_msg=0,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$mediatypeid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$message,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$subject
+	)
+	
+	$opmessage = @{
+		default_msg = $default_msg
+		mediatypeid = $mediatypeid
+		message = $message
+		subject = $subject
+	}
+
+	foreach ($h in $opmessage.Keys) {
+		Write-Host "${h}: $($opmessage.Item($h))"
+	}
+	return $opmessage
+}
+
+Function Set-ZabbixOpMessageGroup {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$usrgrpid
+	)
+	
+	$opmsggrp = @{
+		operationid = $operationid
+		usrgrpid = $usrgrpid
+	}
+
+	foreach ($h in $opmsggrp.Keys) {
+		Write-Host "${h}: $($opmsggrp.Item($h))"
+	}
+	return $opmsggrp
+}
+
+Function Set-ZabbixOpMessageUsr {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$usrid
+	)
+	
+	$opmsgusr = @{
+		operationid = $operationid
+		userid = $usrid
+	}
+
+	foreach ($h in $opmsgusr.Keys) {
+		Write-Host "${h}: $($opmsgusr.Item($h))"
+	}
+	return $opmsgusr
+}
+
+Function Set-ZabbixOpTemplate {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$templateid
+	)
+	
+	$optemplate = @{
+		operationid = $operationid
+		templateid = $templateid
+	}
+
+	foreach ($h in $optemplate.Keys) {
+		Write-Host "${h}: $($optemplate.Item($h))"
+	}
+	return $optemplate
+}
+
+Function Set-ZabbixOpInventory {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$inventory_mode
+	)
+	
+	$opinventory = @{
+		operationid = $operationid
+		inventory_mode = $inventory_mode
+	}
+
+	foreach ($h in $opinventory.Keys) {
+		Write-Host "${h}: $($opinventory.Item($h))"
+	}
+	return $opinventory
+}
+
+function Set-ZabbixActionOpCondition {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$conditiontype,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$value,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$operationid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$operator
+	)
+	
+	$opactioncondition = @{
+		operationid = $operationid
+		inventory_mode = $inventory_mode
+	}
+
+	foreach ($h in $opactioncondition.Keys) {
+		Write-Host "${h}: $($opactioncondition.Item($h))"
+	}
+	return $opactioncondition
+}
+
+function Set-ZabbixActionFilter {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$conditions,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$evaltype,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$eval_formula,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$formula
+	)
+	
+	$opactionfilter = @{
+		conditions = $conditions
+		evaltype = $evaltype
+		eval_formula = $eval_formula
+		formula = $formula
+	}
+
+	foreach ($h in $opactionfilter.Keys) {
+		Write-Host "${h}: $($opactionfilter.Item($h))"
+	}
+	return $opactionfilter
+}
+		
+		
+function Set-ZabbixActionFilterCondition {
+
+	[CmdletBinding()]
+	Param (
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$conditiontype,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$value,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$value2,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$formulaid,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$operator
+	)
+	
+	$opactionfilter = @{
+		conditiontype = $conditiontype
+		value = $value
+		value2 = $value2
+		actionid = $actionid
+		formulaid = $formulaid
+		operator = $operator
+	}
+
+	foreach ($h in $opactionfilter.Keys) {
+		Write-Host "${h}: $($opactionfilter.Item($h))"
+	}
+	return $opactionfilter
+}
+
+Function Set-ZabbixOperation {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$operationType,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionid,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$esc_period=0,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$esc_step_from=1,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$esc_step_to=1,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$evaltype=0,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][object]$opcommand,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opcommand_grp,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opcommand_hst,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opconditions,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opgroup,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][object]$opmessage,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opmessage_grp,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opmessage_usr,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$optemplate,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opinventory,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+		$params = @{}
+		$operations = @{}
+
+        if (!($operationType)) {
+			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
+		} 
+
+        if (($operationType)) {
+		$params.add("operationtype", $operationType)
+			
+			if ($actionid) {
+				$params.add("actionid", $actionid)
+			}
+
+			if ($esc_period) {
+				$params.add("esc_period", $esc_period)
+			}
+
+			if ($esc_step_from) {
+				$params.add("esc_step_from", $esc_step_from)
+			}
+
+			if ($esc_step_to) {
+				$params.add("esc_step_to", $esc_step_to)
+			}
+
+			if ($evaltype) {
+				$params.add("evaltype", $evaltype)
+			}
+			
+			if ($opcommand) {
+				$operations.add("opcommand", $opcommand)
+			}
+
+			if ($opcommand_grp) {
+				$operations.add("opcommand_grp", $opcommand_grp)
+			}
+
+			if ($opcommand_hst) {
+				$operations.add("opcommand_hst", $opcommand_hst)
+			}
+
+			if ($opconditions) {
+				$operations.add("opconditions", $opconditions)
+			}
+
+			if ($opgroup) {
+				$operations.add("opgroup", $opgroup)
+			}
+
+			if ($opmessage) {
+				$operations.add("opmessage", $opmessage)
+			}
+
+			if ($opmessage_grp) {
+				$operations.add("opmessage_grp", $opmessage_grp)
+			}
+
+			if ($opmessage_usr) {
+				$operations.add("opmessage_usr", $opmessage_usr)
+			}
+
+			if ($optemplate) {
+				$operations.add("optemplate", $optemplate)
+			}
+	
+			if ($opinventory) {
+				$operations.add("opinventory", $opinventory)
+			}
+
+		$params.add("operations", $operations)
+    	}
+	}
+}
+
+Function Set-ZabbixRecoveryOperation {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$operationType,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionid,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][object]$opcommand,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opcommand_grp,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opcommand_hst,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][object]$opmessage,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opmessage_grp,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$opmessage_usr,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$URL
+    )
+
+	process {
+
+		if (!$psboundparameters.count) {Get-Help -ex $PSCmdlet.MyInvocation.MyCommand.Name | out-string | Remove-EmptyLines; return}
+		if (!(Get-ZabbixSession)) {return}
+
+		$boundparams=$PSBoundParameters | out-string
+		write-verbose "($boundparams)"
+
+		$params = @{}
+		$recovery_operations = @{}
+
+        if (!($operationType)) {
+			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
+		} 
+
+        if (($operationType)) {
+		$params.add("operationtype", $operationType)
+			
+			if ($actionid) {
+				$params.add("actionid", $actionid)
+			}
+			
+			if ($opcommand) {
+				$recovery_operations.add("opcommand", $opcommand)
+			}
+
+			if ($opcommand_grp) {
+				$recovery_operations.add("opcommand_grp", $opcommand_grp)
+			}
+
+			if ($opcommand_hst) {
+				$recovery_operations.add("opcommand_hst", $opcommand_hst)
+			}
+
+			if ($opconditions) {
+				$recovery_operations.add("opconditions", $opconditions)
+			}
+
+			if ($opmessage) {
+				$recovery_operations.add("opmessage", $opmessage)
+			}
+
+			if ($opmessage_grp) {
+				$recovery_operations.add("opmessage_grp", $opmessage_grp)
+			}
+
+			if ($opmessage_usr) {
+				$recovery_operations.add("opmessage_usr", $opmessage_usr)
+			}	
+
+		$params.add("recovery_operations", $recovery_operations)
+    	}
+	}
+}
+
+Function New-ZabbixAction {
+
+	[CmdletBinding()]
+	Param (
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$actionName,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][object]$recovery_operations,
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,	
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
+        [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$session,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$id,
@@ -1646,59 +2115,25 @@ Function New-ZabbixTriggerAction {
 		write-verbose "($boundparams)"
 
 		$params = @{}
-		$filters = @{}
-    	$conditions = @{}
-		$operations = @{}
-		$opmessage_grp = @{}
-		$opmessage = @{}
-		$recovery_operations = @{}
+		$params.add("name", $actionName)
+		$params.add("eventsource", $eventsource)
+		$params.add("esc_period", $escPeriod)
+		$params.add("operations", $operations)
+		$params.add("recovery_operations", $recovery_operations)
+		$params.add("filters", $filters)
 
-		#$conditions.add("conditiontype", 1)
-		#$conditions.add("operator", 0)
-		#$conditions.add("value", "10084")
-		$conditions.add("conditiontype", 3)
-		$conditions.add("operator", 2)
-		$conditions.add("value", "memory")
 
-		$filters.add("evaltype", 0)
-		$filters.add($conditions, $null)
-
-		$opmessage_grp.add("usrgrpid", 7)
-		$opmessage.add("default_msg", 1)
-		$opmessage.add("mediatypeid", "1")
-
-		$operations.add("operationtype", 0)
-		$operations.add("esc_period", 0)
-		$operations.add("esc_step_from", 1)
-		$operations.add("esc_step_to", 2)
-		$operations.add("evaltype", 0)
-
-		#$recovery_operations.add("operationtype", "11")
-		#$recovery_operations.add($opmessage)
-		#$recovery_operations.remove("default_msg")
-
-        if (!($triggerActionName)) {
-			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
-		} 
-		else {
-			$params.add("name", $triggerActionName)
-			$params.add("event_source", 0)
-			$params.add("status", 0)
-			$params.add("esc_period", 120)
-			$params.add("def_shortdata", $def_shortdata)
-			$params.add("def_longdata", $def_longdata)
-			$params.add("filters", $filters)
-			$params.add("operations", $operations)
-			$params.add("recovery_operations", $recovery_operations)
-		}
+		Write-host $jsonrpc
+        if (($actionName) -and ($eventSource) -and ($escPeriod) -and ($operations)) {
 
 		$Body = @{
-			params = $params
 			jsonrpc = $jsonrpc
+			method = "action.create"
+			params = $params
 			auth = $session
 			id = $id
+			}
 		}
-		write-verbose $params
 
 		$BodyJSON = ConvertTo-Json $Body -Depth 4
 		write-verbose $BodyJSON
@@ -1707,7 +2142,7 @@ Function New-ZabbixTriggerAction {
 		if ($a.result) {$a.result} else {$a.error}
     }
 }
-#>
+
 #end of new functions>
 
 Function New-ZabbixMaintenance {
