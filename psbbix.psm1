@@ -1974,15 +1974,15 @@ Function Set-ZabbixOperation {
 				$params.add("evaltype", $evaltype)
 			}
 			
-			if ($opcommand) {
+			if ($opcommand -and $operationType.Equals(1)) {
 				$operations.add("opcommand", $opcommand)
 			}
 
-			if ($opcommand_grp) {
+			if (!($opcommand_hst)) {
 				$operations.add("opcommand_grp", $opcommand_grp)
 			}
 
-			if ($opcommand_hst) {
+			if (!($opcommand_grp)) {
 				$operations.add("opcommand_hst", $opcommand_hst)
 			}
 
@@ -1990,19 +1990,19 @@ Function Set-ZabbixOperation {
 				$operations.add("opconditions", $opconditions)
 			}
 
-			if ($opgroup) {
+			if ($opgroup -or $operationType.Equals(4) -or $operationType.Equals(5)) {
 				$operations.add("opgroup", $opgroup)
 			}
 
-			if ($opmessage) {
+			if ($opmessage -or $operationType.Equals(0)) {
 				$operations.add("opmessage", $opmessage)
 			}
 
-			if ($opmessage_grp) {
+			if ($opmessage_grp -or ($operationType.Equals(0) -and !(opmessage_usr))) {
 				$operations.add("opmessage_grp", $opmessage_grp)
 			}
 
-			if ($opmessage_usr) {
+			if ($opmessage_usr -or ($operationType.Equals(0) -and !(opmessage_grp))) {
 				$operations.add("opmessage_usr", $opmessage_usr)
 			}
 
@@ -2016,6 +2016,7 @@ Function Set-ZabbixOperation {
 
 		$params.add("operations", $operations)
     	}
+		return $params
 	}
 }
 
@@ -2059,15 +2060,15 @@ Function Set-ZabbixRecoveryOperation {
 				$params.add("actionid", $actionid)
 			}
 			
-			if ($opcommand) {
+			if ($opcommand -and $operationType.Equals(1)) {
 				$recovery_operations.add("opcommand", $opcommand)
 			}
 
-			if ($opcommand_grp) {
+			if ($opcommand_hst) {
 				$recovery_operations.add("opcommand_grp", $opcommand_grp)
 			}
 
-			if ($opcommand_hst) {
+			if ($opcommand_grp) {
 				$recovery_operations.add("opcommand_hst", $opcommand_hst)
 			}
 
@@ -2075,20 +2076,21 @@ Function Set-ZabbixRecoveryOperation {
 				$recovery_operations.add("opconditions", $opconditions)
 			}
 
-			if ($opmessage) {
+			if ($opmessage -or $operationType.Equals(0)) {
 				$recovery_operations.add("opmessage", $opmessage)
 			}
 
-			if ($opmessage_grp) {
+			if ($opmessage_grp -or ($operationType.Equals(0) -and !(opmessage_usr))) {
 				$recovery_operations.add("opmessage_grp", $opmessage_grp)
 			}
 
-			if ($opmessage_usr) {
+			if ($opmessage_usr -or ($operationType.Equals(0) -and !(opmessage_grp))) {
 				$recovery_operations.add("opmessage_usr", $opmessage_usr)
 			}	
 
 		$params.add("recovery_operations", $recovery_operations)
     	}
+		return $params
 	}
 }
 
@@ -2098,6 +2100,7 @@ Function New-ZabbixAction {
 	Param (
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$actionName,
 		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][object]$recovery_operations,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$true)][object]$operations,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,	
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
