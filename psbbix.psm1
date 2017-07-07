@@ -1405,23 +1405,25 @@ Function New-ZabbixHostGroup {
     }
 }
 
-
 <#
 Function New-ZabbixAutoregAction {
 
 	[CmdletBinding()]
 	Param (
 		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$actionName,
-		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$hostMetadataValues,		
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$hostGroupName,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$templateName,		
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$hostMetadataEnvVal,
+		[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$hostMetadataAppVal,			
 		#[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
         #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
         #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][array]$filters,
         #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
         #[Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][int]$eventSource,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$status,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
-        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata,
-		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$status,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$maintenance_mode,
+        [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_longdata="teststr",
+		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$def_shortdata="teststr",
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_longdata,
 		[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$r_shortdata,
         [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)][string]$jsonrpc,
@@ -1437,14 +1439,27 @@ Function New-ZabbixAutoregAction {
 		$boundparams=$PSBoundParameters | out-string
 		write-verbose "($boundparams)"
 
-		#$conditiontype = 24, 24
-		#$conditiontype = New-Object 'System.Collections.Generic.List[Int]'
-		#$conditiontype.add(24)
-		#$conditiontype.add(24)
-		$values = "env=test", "app=testApp"
         if (!($actionName)) {
 			write-host "`nYou need to provide a Name parameter for the action you are attempting to create`n" -f red
 		} 
+
+		$groups = Get-ZabbixGroup @zabSessionParams -GroupName $hostGroupName 
+
+		if ($groups) {
+			$groupid = $groups.groupid
+		}
+		else {
+			write-host "host group $groups does not exist"
+		}
+
+		$templates = Get-ZabbixTemplate @zabSessionParams -TemplateName $templateName 
+
+		if ($templates.exists) {
+			$link_templateid = $templateName.templateid
+		}
+		else {
+			write-host "template $templateName does not exist"
+		}		
 
 		$Body = @{
 			method = "action.create"
@@ -1461,35 +1476,75 @@ Function New-ZabbixAutoregAction {
 						@{
 							conditiontype = 24
 							operator = 2
-							value = $values[0]
+							value = $hostMetadataEnvVal
 						}
 						@{
 							conditiontype = 24
 							operator = 2
-							value = $values[1]
+							value = $hostMetadataAppVal
 						}
 					)
 				}
-				operations = @{
-					operationtype = 0
-					esc_period = 0
-					esc_step_from = 1
-					esc_step_to = 2
-					evaltype = 0
-					opmessage_grp = @(
-						@{
-							usrgrpid = "7"
-						}
-					)
-					opmessage = @(
-						default_msg = 1
-						mediatypeid = "1"
-					)
-				}
+				operations = @(
+					@{
+						operationtype = 4
+						esc_period = 0
+						esc_step_from = 1
+						esc_step_to = 2
+						evaltype = 0
+						opgroup = @(
+							@{
+								groupid = $groupid
+							}
+						)
+						opmessage = @(
+							@{
+								default_msg = 1
+								mediatypeid = "1"
+							}
+						)
+					}
+					@{
+						operationtype = 6
+						esc_period = 0
+						esc_step_from = 1
+						esc_step_to = 2
+						evaltype = 0
+						optemplate = @(
+							@{
+								templateid = $link_templateid
+							}
+						)
+						opmessage = @(
+							@{
+								default_msg = 1
+								mediatypeid = "1"
+							}
+						)											
+					}
+					@{
+						operationtype = 10
+						esc_period = 0
+						esc_step_from = 1
+						esc_step_to = 2
+						evaltype = 0
+						opinventory = @(
+							@{
+								inventory_mode = "1"
+							}
+						)
+						opmessage = @(
+							@{
+								default_msg = 1
+								mediatypeid = "1"
+							}
+						)					
+					}
+				)
 				recovery_operations = @{
 					operationtype = "11"
 					opmessage = @{
-						sdefault_msg = 1
+						default_msg = 1
 					}
 				}
 			}
@@ -1515,7 +1570,7 @@ Function New-ZabbixTriggerAction {
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$triggerActionName,
         [Parameter(Mandatory=$True,ValueFromPipelineByPropertyName=$false)][string]$host_Group,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][string]$actionID,
-        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actSionOperations,
+        #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionOperations,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$actionRecoveryOperations,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][array]$filters,
         #[Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$false)][int]$escPeriod,
@@ -1617,7 +1672,7 @@ Function New-ZabbixTriggerAction {
 		if ($a.result) {$a.result} else {$a.error}
     }
 }
-#>
+
 
 Function Set-ZabbixOpConditions {
 
@@ -2146,7 +2201,8 @@ Function New-ZabbixAction {
     }
 }
 
-#end of new functions>
+end of new functions
+#>
 
 Function New-ZabbixMaintenance {
 	<# 
